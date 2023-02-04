@@ -103,17 +103,17 @@ class AirSimDroneEnv(AirSimEnv):
         self.drone.enableApiControl(True)
         self.drone.armDisarm(True)
         x,y,z,w = airsim.utils.to_quaternion(0, 0, np.random.randint(0,360))
-        loc= [[30,40], [0,0], [81,57], [-43,-56],[0,0], [38,112], [-20, -200], [-20, 200],[-83, -183], 
-        [-233, 24], [-15, 43], [0,0], [183, -189], [0,0],[-183,-189]]
+        loc= [[30,40], [81,57], [-43,-56], [38,112], [-20, -200], [-20, 200],[-83, -183], 
+        [-233, 24], [-15, 43], [183, -189], [0,0],[-183,-189]]
         ranloc= random.choice(loc)
         x= ranloc[0]
         y= ranloc[1]
         z= -5
         position = airsim.Vector3r(x, y, z)
         pose = airsim.Pose(position)
-        self.drone.simSetVehiclePose(pose, ignore_collision= False)
+        self.drone.simSetVehiclePose(pose, ignore_collision= True)
         
-        self.drone.moveToPositionAsync(x,y,-5,1).join()
+        self.drone.moveToPositionAsync(x,y,-5,3).join()
 
     def move(self, action):
         self.action = action
@@ -154,7 +154,6 @@ class AirSimDroneEnv(AirSimEnv):
             #     if self.action[0]<0.3:
             #         reward_yaw= abs(self.action[1])
         else:
-            print("?")
             if self.action[0] <= 0:
                 self.action[0] = 0
             reward_dyn = self.action[0]*np.cos(self.action[1] * np.pi/180)/5        
