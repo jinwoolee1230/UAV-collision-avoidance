@@ -15,6 +15,7 @@ class AirSimDroneEnv(AirSimEnv):
     def __init__(self, ip_address):
         super().__init__()
 
+        self.prev_yaw = 0
         self.state = {
             "depth": np.zeros([1,10,10,3]),
             "dyn_state": np.zeros(3),
@@ -142,20 +143,24 @@ class AirSimDroneEnv(AirSimEnv):
 
         if min(self.distance)<5 :
             
-            if self.action[0]==0:
+            if self.action[0]<=0:
                 reward_dyn= 2
-                if np.sign(self.prev_yaw)== np.sign(self.action[1]):
-                    reward_yaw= abs(self.action[1])
+                reward_yaw = -np.cos(self.action[1] * np.pi/180)
+                # if np.sign(self.prev_yaw) == np.sign(self.action[1]):
+                #     reward_yaw= abs(self.action[1])
 
-            else: 
-                reward_dyn= -1-self.action[0]*np.cos(self.action[1] * np.pi/180)/5
-                if self.action[0]<0.3:
-                    reward_yaw= abs(self.action[1])
+            # else: 
+            #     reward_dyn= -1-self.action[0]*np.cos(self.action[1] * np.pi/180)/5
+            #     if self.action[0]<0.3:
+            #         reward_yaw= abs(self.action[1])
         else:
+            print("?")
+            if self.action[0] <= 0:
+                self.action[0] = 0
             reward_dyn = self.action[0]*np.cos(self.action[1] * np.pi/180)/5        
         self.prev_yaw= self.action[1]
         reward = reward_dyn + reward_yaw
-        print(reward_dyn, reward)       
+        # print(reward_dyn, reward)       
         return reward, done
         
     def step(self, action):

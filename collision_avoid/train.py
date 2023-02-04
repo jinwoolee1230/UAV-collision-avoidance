@@ -7,6 +7,8 @@ from keras.optimizers import Adam
 import datetime
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import tqdm
+import time
 
 ## A2C CNN 액터 신경망
 
@@ -275,7 +277,9 @@ class A2Cagent(object):
     def train(self, max_episode_num):
 
         # 에피소드마다 다음을 반복
-        for ep in range(int(max_episode_num)):
+
+        pbar = tqdm(range(int(max_episode_num)))
+        for ep in pbar:
 
             # 배치 초기화
             batch_state, batch_action, batch_reward, batch_next_state, batch_done = [], [], [], [], []
@@ -285,9 +289,12 @@ class A2Cagent(object):
             self.time, episode_reward, done = 0, 0, False
             # 환경 초기화 및 초기 상태 관측
             state= self.env.reset()
-
+            
+            self.time_zero = time.time()
             while not done:
-
+                elapsed_time = time.time() - self.time_zero
+                if elapsed_time >= 300:
+                    break
                 # 행동 샘플링
                 action = self.get_action(state["depth"], state["dyn_state"])
                 # 행동 범위 클리핑
@@ -295,6 +302,7 @@ class A2Cagent(object):
                 # 다음 상태, 보상 관측
                 next_state, reward, done= self.env.step(action)
                 #TQDM CODE
+                pbar.set_description(f"EP: {ep+1}, REWARD: {reward:.2f}, vx: {action[0]:.2f}, yawrate: {action[1]:.2f}, Elapsed_time: {int(elapsed_time)}, distance: {np.min(self.env.distance):.2f}")
                 # shape 변환
                 #action = np.reshape(action, [1, self.action_dim])
                 #reward = np.reshape(reward, [1, 1])
@@ -363,6 +371,7 @@ class A2Cagent(object):
                 # 상태 업데이트
                 state = next_state
                 episode_reward += reward
+
 
             # 에피소드마다 결과 출력
             if self.time>1:
