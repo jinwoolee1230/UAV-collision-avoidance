@@ -108,7 +108,7 @@ class AirSimDroneEnv(AirSimEnv):
         ranloc= random.choice(loc)
         x= ranloc[0]
         y= ranloc[1]
-        z= -5
+        z= -3
         position = airsim.Vector3r(x, y, z)
         pose = airsim.Pose(position)
         self.drone.simSetVehiclePose(pose, ignore_collision= True)
