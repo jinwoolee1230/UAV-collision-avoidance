@@ -140,23 +140,20 @@ class AirSimDroneEnv(AirSimEnv):
             done = 1
         else:
             done=0
+        if self.action[0] <= 0:
+                self.action[0] = 0
 
         if min(self.distance)<5 :
             
-            if self.action[0]<=0:
+            if self.action[0]==0:
                 reward_dyn= 2
-                reward_yaw = -np.cos(self.action[1] * np.pi/180)
+                reward_yaw = -np.cos((self.action[1]*10) * np.pi/180)
                 # if np.sign(self.prev_yaw) == np.sign(self.action[1]):
                 #     reward_yaw= abs(self.action[1])
 
-            # else: 
-            #     reward_dyn= -1-self.action[0]*np.cos(self.action[1] * np.pi/180)/5
-            #     if self.action[0]<0.3:
-            #         reward_yaw= abs(self.action[1])
         else:
-            if self.action[0] <= 0:
-                self.action[0] = 0
-            reward_dyn = self.action[0]*np.cos(self.action[1] * np.pi/180)/5        
+            reward_dyn = self.action[0]*np.cos((self.action[1]*10) * np.pi/180)/5    
+
         self.prev_yaw= self.action[1]
         reward = reward_dyn + reward_yaw
         # print(reward_dyn, reward)       
