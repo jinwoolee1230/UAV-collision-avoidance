@@ -16,6 +16,8 @@ def main():
 
     agent = A2Cagent(env)   # A2C 에이전트 객체
     
+    #agent.actor.load_weights('actor.h5')
+    #agent.critic.load_weights('critic.h5')
     # 학습 진행
     agent.train(max_episode_num)
 

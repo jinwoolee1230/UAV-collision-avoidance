@@ -103,8 +103,7 @@ class AirSimDroneEnv(AirSimEnv):
         self.drone.enableApiControl(True)
         self.drone.armDisarm(True)
         x,y,z,w = airsim.utils.to_quaternion(0, 0, np.random.randint(0,360))
-        loc= [[30,40], [81,57], [-43,-56], [38,112], [-20, -200], [-20, 200],[-83, -183], 
-        [-233, 24], [-15, 43], [183, -189], [0,0],[-183,-189]]
+        loc= [[30,40], [81,57], [-43,-56], [38,112], [-15, 43], [0,0]]
         ranloc= random.choice(loc)
         x= ranloc[0]
         y= ranloc[1]
@@ -119,7 +118,7 @@ class AirSimDroneEnv(AirSimEnv):
         self.action = action
         if action[0]<0:
             action[0]=0
-        vx, yaw_rate = action[0]*0.4, action[1]*10
+        vx, yaw_rate = action[0], action[1]*10
         self.drone.moveByVelocityZBodyFrameAsync(
             vx = float(vx),
             vy = 0.0,
@@ -134,28 +133,32 @@ class AirSimDroneEnv(AirSimEnv):
         vel_w: Action is degree/sec, State is rad/sec!!!
         '''
         reward_dyn=0
-        reward_yaw=0
-        reward_depth=0
-        if self.state['collision']:
+        delta_depth=0
+        if self.state['collision']==True:
             done = 1
         else:
-            done=0
+            done = 0
+            
         if self.action[0] <= 0:
                 self.action[0] = 0
 
         if min(self.distance)<5 :
-            
-            if self.action[0]==0:
-                reward_dyn= 2
-                reward_yaw = -np.cos((self.action[1]*10) * np.pi/180)
-                # if np.sign(self.prev_yaw) == np.sign(self.action[1]):
-                #     reward_yaw= abs(self.action[1])
+            if self.action[0]>0:
+                reward_dyn=-2
+            else:
+                reward_dyn = (1-(self.action[0])/5)*(1-np.cos(self.action[1]*10 * np.pi/180))*2
+
+            delta_depth= min(self.distance)- self.prev_depth
 
         else:
-            reward_dyn = self.action[0]*np.cos((self.action[1]*10) * np.pi/180)/5    
+            reward_dyn = self.action[0]*np.cos(self.action[1]*10 * np.pi/180)/5
+            if self.action[1]==0:
+                reward_dyn+= self.action[0]/5
 
-        self.prev_yaw= self.action[1]
-        reward = reward_dyn + reward_yaw
+        reward = reward_dyn+ delta_depth
+
+
+        self.prev_depth= min(self.distance)
         # print(reward_dyn, reward)       
         return reward, done
         

@@ -378,15 +378,26 @@ class A2Cagent(object):
                 print('Episode: ', ep+1, 'Time: ', self.time, 'Reward: ', episode_reward)
                 with self.train_summary_writer.as_default():
                     tf.summary.scalar('Episode_reward', episode_reward, step=ep)
+                now_time= datetime.datetime.now()
+                now_time1= now_time.strftime("%A %d. %B %Y")
+                path= "/home/asl/collision-avoidance-study/collision_avoid/save_weights/"
+                folder= now_time1
+                file= (str(ep)+"actor.h5")
+                file1= (str(ep)+"critic.h5")
+                import os
+                joined_path = os.path.join(path, folder, file)
+                joined_path1 = os.path.join(path, folder, file1)
+                joined_path2=os.path.join(path, folder) 
+                if not os.path.exists(joined_path2):
+                    os.makedirs(joined_path2)
+                #os.makedirs(joined_path)
+
+                self.actor.save_weights (joined_path)
+                self.critic.save_weights (joined_path1)
+
                 self.save_epi_reward.append(episode_reward)
             else:
                 ep-=1
-
-
-            # 에피소드 10번마다 신경망 파라미터를 파일에 저장
-            if ep % 10 == 0:
-                self.actor.save_weights("./collision_avoid/save_weights/actor.h5")
-                self.critic.save_weights("./collision_avoid/save_weights/critic.h5")
 
         # 학습이 끝난 후, 누적 보상값 저장
         np.savetxt('./collision_avoid/save_weights/reward.txt', self.save_epi_reward)
