@@ -20,7 +20,7 @@ def main():
     state = env.reset() 
     action = agent.actor(state['depth'], state['dyn_state'])
     print(action)
-    agent.load_weights('./collision_avoid/save_weights/')  # 신경망 파라미터 가져옴
+    agent.load_weights('./collision_avoid_SAC/save_weights/')  # 신경망 파라미터 가져옴
     
     for _ in range(100000000):
         time = 0
@@ -30,7 +30,7 @@ def main():
             # 행동 계산
             action = agent.get_action(state['depth'], state['dyn_state'])
 
-            state, reward, done = env.step(action)
+            state, reward, done, _ = env.step(action)
             time += 1
 
             print('Time: ', time, 'Reward: ', reward)

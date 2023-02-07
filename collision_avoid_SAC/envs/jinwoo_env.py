@@ -41,7 +41,7 @@ class AirSimDroneEnv(AirSimEnv):
             ])
         self.state["dyn_state"] = self.make_batch(np.array([vx, vy, yaw_rate]))
         self.state['collision'] = self.drone.simGetCollisionInfo().has_collided
-        self.state["depth"]= self.make_batch(self.lidar_data())
+        self.state["depth"]= self.lidar_data()
         
         return self.state
     
@@ -118,7 +118,7 @@ class AirSimDroneEnv(AirSimEnv):
         self.action = action
         if action[0]<0:
             action[0]=0
-        vx, yaw_rate = action[0], action[1]*10
+        vx, yaw_rate = action[0]*0.6, action[1]*10
         self.drone.moveByVelocityZBodyFrameAsync(
             vx = float(vx),
             vy = 0.0,
@@ -143,18 +143,13 @@ class AirSimDroneEnv(AirSimEnv):
                 self.action[0] = 0
 
         if min(self.distance)<5 :
-            if self.action[0]>0:
-                reward_dyn=-2
-            else:
-                reward_dyn = (1-(self.action[0])/5)*(1-np.cos(self.action[1]*10 * np.pi/180))*2
+            reward_dyn = (1-(self.action[0])/5)*(1-np.cos(self.action[1]*10 * np.pi/180))*2
 
             delta_depth= min(self.distance)- self.prev_depth
 
         else:
             reward_dyn = self.action[0]*np.cos(self.action[1]*10 * np.pi/180)/5
-            if self.action[1]==0:
-                reward_dyn+= self.action[0]/5
-
+            
         reward = reward_dyn+ delta_depth
 
 

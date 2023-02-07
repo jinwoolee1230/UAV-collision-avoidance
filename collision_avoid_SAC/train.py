@@ -55,8 +55,13 @@ class Actor(Model):
 
     def call(self, state1, state2):
         depth, dyn_state = state1, state2
-        #print (state[0].shape)
-        #print (state[1].shape)
+        #print (depth.shape, dyn_state.shape)
+        if len(depth.shape) == 3:
+            depth = tf.expand_dims(depth, axis=0)
+        
+        if len(dyn_state.shape) == 2:
+            
+            dyn_state = tf.expand_dims(dyn_state, axis=0)
 
         depth_features = self.conv1(depth)
         depth_features = self.maxpool1(depth_features)
@@ -140,9 +145,16 @@ class Critic(Model):
         
         
 
-    def call(self, state_action1, state_action2):
+    def call(self, state_action1, state_action2, state_action3):
 
-        depth, dyn_state = state_action1, state_action2
+        depth, dyn_state, action= state_action1, state_action2, state_action3
+
+        if len(depth.shape) == 3:
+            depth = tf.expand_dims(depth, axis=0)
+        
+        if len(dyn_state.shape) == 2:
+            
+            dyn_state = tf.expand_dims(dyn_state, axis=0)
 
         depth_features = self.conv1(depth)
         depth_features = self.maxpool1(depth_features)
@@ -164,6 +176,13 @@ class Critic(Model):
         x = self.h1(concat_state)
         x = self.h2(x)
         x = self.h3(x)
+       
+
+        x = self.x1(x)
+        a = self.a1(action)
+        h = self.concat2([x, a])
+        x = self.h4(h)
+        x = self.h5(x)
         q = self.q(x)
         return q
 
@@ -212,6 +231,10 @@ class SACagent(object):
         # 에피소드에서 얻은 총 보상값을 저장하기 위한 변수
         self.save_epi_reward = []
 
+        self.current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        self.log_dir = '/home/asl/collision-avoidance-study/collision_avoid_SAC/logs/' + self.current_time + '/train'
+        self.train_summary_writer = tf.summary.create_file_writer(self.log_dir)
+
 
     ## 행동 샘플링
     def get_action(self, state1, state2):
@@ -237,18 +260,24 @@ class SACagent(object):
     ## Q1, Q2 신경망 학습
     def critic_learn(self, states1, states2, actions, q_targets):
         with tf.GradientTape() as tape:
-            q_1 = self.critic_1([states1, states2, actions], training=True)
+            q_1 = self.critic_1(states1, states2, actions, training=True)
             loss_1 = tf.reduce_mean(tf.square(q_1-q_targets))
 
         grads_1 = tape.gradient(loss_1, self.critic_1.trainable_variables)
-        self.critic_1_opt.apply_gradients(zip(grads_1, self.critic_1.trainable_variables))
+        gradients1 = [(tf.clip_by_value(grad, -1.0, 1.0)) for grad in grads_1]
+        self.critic_1_opt.apply_gradients(zip(gradients1, self.critic_1.trainable_variables))
 
         with tf.GradientTape() as tape:
-            q_2 = self.critic_2([states1, states2, actions], training=True)
+            q_2 = self.critic_2(states1, states2, actions, training=True)
             loss_2 = tf.reduce_mean(tf.square(q_2-q_targets))
+        with self.train_summary_writer.as_default():
+                    tf.summary.scalar('critic_1_loss', loss_1, step=self.yaho)
+        with self.train_summary_writer.as_default():
+                    tf.summary.scalar('critic_2_loss', loss_2, step=self.yaho)
 
         grads_2 = tape.gradient(loss_2, self.critic_2.trainable_variables)
-        self.critic_2_opt.apply_gradients(zip(grads_2, self.critic_2.trainable_variables))
+        gradients2 = [(tf.clip_by_value(grad, -1.0, 1.0)) for grad in grads_2]
+        self.critic_2_opt.apply_gradients(zip(gradients2, self.critic_2.trainable_variables))
 
 
     ## 액터 신경망 학습
@@ -262,9 +291,12 @@ class SACagent(object):
             soft_q = tf.math.minimum(soft_q_1, soft_q_2)
 
             loss = tf.reduce_mean(self.ALPHA * log_pdfs - soft_q)
+        with self.train_summary_writer.as_default():
+            tf.summary.scalar('actor_loss', loss, step=self.yaho)
 
         grads = tape.gradient(loss, self.actor.trainable_variables)
-        self.actor_opt.apply_gradients(zip(grads, self.actor.trainable_variables))
+        gradients3 = [(tf.clip_by_value(grad, -1.0, 1.0)) for grad in grads]
+        self.actor_opt.apply_gradients(zip(gradients3, self.actor.trainable_variables))
 
 
     ## 시간차 타깃 계산
@@ -290,43 +322,53 @@ class SACagent(object):
 
         # 타깃 신경망 초기화
         self.update_target_network(1.0)
+        self.yaho=0
+        pbar = tqdm(range(int(max_episode_num)))
 
         # 에피소드마다 다음을 반복
-        for ep in range(int(max_episode_num)):
+        
+        for ep in pbar:
 
             # 에피소드 초기화
-            time, episode_reward, done = 0, 0, False
+            self.time, episode_reward, done = 0, 0, False
             # 환경 초기화 및 초기 상태 관측
             state = self.env.reset()
-
+            self.time_zero = time.time()
             while not done:
                 # 환경 가시화
                 #self.env.render()
                 # 행동 샘플링
+                elapsed_time = time.time() - self.time_zero
+                if elapsed_time >= 300:
+                    break
                 action = self.get_action(state["depth"], state["dyn_state"])                # 행동 범위 클리핑
                 action = np.clip(action, -self.action_bound, self.action_bound)
                 # 다음 상태, 보상 관측
                 next_state, reward, done, _= self.env.step(action)
+                pbar.set_description(f"EP: {ep+1}, REWARD: {reward:.2f}, vx: {action[0]:.2f}, yawrate: {action[1]:.2f}, Elapsed_time: {int(elapsed_time)}, distance: {np.min(self.env.distance):.2f}")
                 # 학습용 보상 설정
                 train_reward = reward
                 # 리플레이 버퍼에 저장
                 self.buffer.add_buffer(state["depth"], state["dyn_state"], action, reward, next_state["depth"], next_state["dyn_state"], done)
+                
+                with self.train_summary_writer.as_default():
+                    tf.summary.scalar('Step_reward', reward, step= self.yaho)
 
                 # 리플레이 버퍼가 일정 부분 채워지면 학습 진행
                 if self.buffer.buffer_count() > 1000:
 
                     # 리플레이 버퍼에서 샘플 무작위 추출
+
                     states_depth, states_dyn, actions, rewards, next_states_depth, next_states_dyn, dones = self.buffer.sample_batch(self.BATCH_SIZE)
 
                     # Q 타깃 계산
-                    next_mu, next_std = self.actor(tf.convert_to_tensor(next_states_depth, next_states_dyn))
-                    prev_nd= next_states_depth
-                    prev_ndy=next_states_dyn
-
+                    next_mu, next_std = self.actor(tf.convert_to_tensor(next_states_depth),
+                                                    tf.convert_to_tensor(next_states_dyn))
+                    
                     next_actions, next_log_pdf = self.actor.sample_normal(next_mu, next_std)
 
-                    target_qs_1 = self.target_critic_1([next_states_depth, next_states_dyn, next_actions])
-                    target_qs_2 = self.target_critic_2([next_states_depth, next_states_dyn, next_actions])
+                    target_qs_1 = self.target_critic_1(next_states_depth, next_states_dyn, next_actions)
+                    target_qs_2 = self.target_critic_2(next_states_depth, next_states_dyn, next_actions)
                     target_qs = tf.math.minimum(target_qs_1, target_qs_2)
 
                     target_qi = target_qs - self.ALPHA * next_log_pdf
@@ -335,12 +377,14 @@ class SACagent(object):
                     y_i = self.q_target(rewards, target_qi.numpy(), dones)
 
                     # Q1, Q2 신경망 업데이트
-                    self.critic_learn(tf.convert_to_tensor(states_depth, states_dyn, dtype=tf.float32),
+                    self.critic_learn(tf.convert_to_tensor(states_depth, dtype=tf.float32),
+                                      tf.convert_to_tensor(states_dyn, dtype=tf.float32),
                                       tf.convert_to_tensor(actions, dtype=tf.float32),
                                       tf.convert_to_tensor(y_i, dtype=tf.float32))
 
                     # 액터 신경망 업데이트
-                    self.actor_learn(tf.convert_to_tensor(states_depth, states_dyn, dtype=tf.float32))
+                    self.actor_learn(tf.convert_to_tensor(states_depth, dtype=tf.float32),
+                                     tf.convert_to_tensor(states_dyn, dtype=tf.float32))
 
                     # 타깃 신경망 업데이트
                     self.update_target_network(self.TAU)
@@ -348,20 +392,39 @@ class SACagent(object):
                 # 다음 스텝 준비
                 state = next_state
                 episode_reward += reward
-                time += 1
+                self.time += 1
+                self.yaho+=1
 
-            # 에피소드마다 결과 보상값 출력
-            print('Episode: ', ep+1, 'Time: ', time, 'Reward: ', episode_reward)
-            self.save_epi_reward.append(episode_reward)
+            if self.time>1:
+                print('Episode: ', ep+1, 'Time: ', self.time, 'Reward: ', episode_reward)
+                with self.train_summary_writer.as_default():
+                    tf.summary.scalar('Episode_reward', episode_reward, step=ep)
+                now_time= datetime.datetime.now()
+                now_time1= now_time.strftime("%A %d. %B %Y")
+                path= "/home/asl/collision-avoidance-study/collision_avoid_SAC/save_weights/"
+                folder= now_time1
+                file= (str(ep)+"actor.h5")
+                file1= (str(ep)+"critic_a.h5")
+                file2= (str(ep)+"critic_b.h5")
+                import os
+                joined_path = os.path.join(path, folder, file)
+                joined_path1 = os.path.join(path, folder, file1)
+                joined_path3 = os.path.join(path, folder, file2)
+                joined_path2=os.path.join(path, folder) 
+                if not os.path.exists(joined_path2):
+                    os.makedirs(joined_path2)
+                #os.makedirs(joined_path)
 
+                self.actor.save_weights (joined_path)
+                self.critic_1.save_weights (joined_path1)
+                self.critic_2.save_weights (joined_path3)
 
-            # 에피소드마다 신경망 파라미터를 파일에 저장
-            self.actor.save_weights("./collision_avoid_SAC/save_weights/pendulum_actor_2q.h5")
-            self.critic_1.save_weights("./collision_avoid_SAC/save_weights/pendulum_critic_12q.h5")
-            self.critic_2.save_weights("./collision_avoid_SAC/save_weights/pendulum_critic_22q.h5")
+                self.save_epi_reward.append(episode_reward)
+            else:
+                ep-=1
 
         # 학습이 끝난 후, 누적 보상값 저장
-        np.savetxt('.collision_avoid_SAC/save_weights/pendulum_epi_reward_2q.txt', self.save_epi_reward)
+        np.savetxt('.collision_avoid_SAC/save_weights/reward.txt', self.save_epi_reward)
         print(self.save_epi_reward)
 
 
