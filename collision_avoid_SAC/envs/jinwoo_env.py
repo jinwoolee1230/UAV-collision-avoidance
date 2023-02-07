@@ -166,7 +166,7 @@ class AirSimDroneEnv(AirSimEnv):
         self.move(action)
         self.obs= self._get_obs()
         self.reward, self.done= self.get_reward()
-        return self.obs, self.reward, self.done
+        return self.obs, self.reward, self.done, self.state
 
     def reset(self):
         self._setup_flight()
