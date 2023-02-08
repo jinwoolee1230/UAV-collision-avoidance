@@ -424,7 +424,7 @@ class SACagent(object):
                 ep-=1
 
         # 학습이 끝난 후, 누적 보상값 저장
-        np.savetxt('.collision_avoid_SAC/save_weights/reward.txt', self.save_epi_reward)
+        np.savetxt('./collision_avoid_SAC/save_weights/reward.txt', self.save_epi_reward)
         print(self.save_epi_reward)
 
 

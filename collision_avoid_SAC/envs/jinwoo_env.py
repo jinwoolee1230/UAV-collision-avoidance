@@ -142,14 +142,11 @@ class AirSimDroneEnv(AirSimEnv):
         if self.action[0] <= 0:
                 self.action[0] = 0
 
-        if min(self.distance)<5 :
-            reward_dyn = (1-(self.action[0])/5)*(1-np.cos(self.action[1]*10 * np.pi/180))*2
-
-            delta_depth= min(self.distance)- self.prev_depth
-
+        if min(self.distance)<5:
+            reward_dyn= np.sin(self.action[1]*10 * np.pi/180)
+            delta_depth= min(self.distance)-self.prev_depth
         else:
             reward_dyn = self.action[0]*np.cos(self.action[1]*10 * np.pi/180)/5
-            
         reward = reward_dyn+ delta_depth
 
 
