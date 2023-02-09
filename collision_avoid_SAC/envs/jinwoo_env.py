@@ -128,26 +128,21 @@ class AirSimDroneEnv(AirSimEnv):
         )     
 
     def get_reward(self):
-        '''
-        vel_x: Action is m/s, State is m/s
-        vel_w: Action is degree/sec, State is rad/sec!!!
-        '''
         reward_dyn=0
         delta_depth=0
         if self.state['collision']==True:
             done = 1
         else:
             done = 0
-            
         if self.action[0] <= 0:
                 self.action[0] = 0
-
+        
         if min(self.distance)<5:
-            reward_dyn= np.sin(self.action[1]*10 * np.pi/180)
-            delta_depth= min(self.distance)-self.prev_depth
+            reward_dyn= abs(np.sin(self.action[1]*10 * np.pi/180))*(1-(self.action[0]))
+
         else:
-            reward_dyn = self.action[0]*np.cos(self.action[1]*10 * np.pi/180)/5
-        reward = reward_dyn+ delta_depth
+            reward_dyn = self.action[0]*np.cos(self.action[1]*10 * np.pi/180)/4
+        reward = reward_dyn
 
 
         self.prev_depth= min(self.distance)
