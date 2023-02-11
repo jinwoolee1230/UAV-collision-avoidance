@@ -1,0 +1,7 @@
+tensorflow==2.10
+matplotlib
+tqdm
+tensorflow_probability
+gym==0.24.1
+msgpack-rpc-python
+airsim

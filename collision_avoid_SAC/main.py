@@ -8,7 +8,7 @@ np.set_printoptions(threshold=sys.maxsize)
 def main():
 
     max_episode_num = 1000   # 최대 에피소드 설정
-    env = AirSimDroneEnv ("172.17.0.1")
+    env = AirSimDroneEnv ("127.0.0.1")
     #while True:
     #        env.drone.moveByVelocityAsync(3,0,0,3)
     #        env.lidar_data()

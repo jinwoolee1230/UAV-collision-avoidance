@@ -63,14 +63,14 @@ class Actor(Model):
             
             dyn_state = tf.expand_dims(dyn_state, axis=0)
 
-        depth_features = self.conv1(depth)
+        '''depth_features = self.conv1(depth)
         depth_features = self.maxpool1(depth_features)
         depth_features = self.conv2(depth_features)
         depth_features = self.maxpool2(depth_features)
         depth_features = self.conv3(depth_features)
-        depth_features = self.maxpool3(depth_features)
+        depth_features = self.maxpool3(depth_features)'''
         
-        depth_features = self.flatten1(depth_features)
+        depth_features = self.flatten1(depth)
         depth_features = self.depth_h1(depth_features)
         depth_features = self.depth_h2(depth_features)
         
@@ -156,14 +156,14 @@ class Critic(Model):
             
             dyn_state = tf.expand_dims(dyn_state, axis=0)
 
-        depth_features = self.conv1(depth)
+        '''depth_features = self.conv1(depth)
         depth_features = self.maxpool1(depth_features)
         depth_features = self.conv2(depth_features)
         depth_features = self.maxpool2(depth_features)
         depth_features = self.conv3(depth_features)
-        depth_features = self.maxpool3(depth_features)
+        depth_features = self.maxpool3(depth_features)'''
         
-        depth_features = self.flatten1(depth_features)
+        depth_features = self.flatten1(depth)
         depth_features = self.depth_h1(depth_features)
         depth_features = self.depth_h2(depth_features)
         
@@ -232,7 +232,8 @@ class SACagent(object):
         self.save_epi_reward = []
 
         self.current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.log_dir = '/home/asl/collision-avoidance-study/collision_avoid_SAC/logs/' + self.current_time + '/train'
+        #self.log_dir = '/home/asl/collision-avoidance-study/collision_avoid_SAC/logs/' + self.current_time + '/train'
+        self.log_dir = '/home/mw/collision-avoidance-study/collision_avoid_SAC/logs/' + self.current_time + '/train'
         self.train_summary_writer = tf.summary.create_file_writer(self.log_dir)
 
 
@@ -401,7 +402,7 @@ class SACagent(object):
                     tf.summary.scalar('Episode_reward', episode_reward, step=ep)
                 now_time= datetime.datetime.now()
                 now_time1= now_time.strftime("%A %d. %B %Y")
-                path= "/home/asl/collision-avoidance-study/collision_avoid_SAC/save_weights/"
+                path= "/home/mw/collision-avoidance-study/collision_avoid_SAC/save_weights/"
                 folder= now_time1
                 file= (str(ep)+"actor.h5")
                 file1= (str(ep)+"critic_a.h5")
@@ -424,7 +425,7 @@ class SACagent(object):
                 ep-=1
 
         # 학습이 끝난 후, 누적 보상값 저장
-        np.savetxt('./collision_avoid_SAC/save_weights/reward.txt', self.save_epi_reward)
+        np.savetxt('/home/mw/collision-avoidance-study/collision_avoid_SAC/save_weights/reward.txt', self.save_epi_reward)
         print(self.save_epi_reward)
 
 

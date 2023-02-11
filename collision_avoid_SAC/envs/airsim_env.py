@@ -8,9 +8,9 @@ class AirSimEnv(gym.Env):
     metadata = {"render.modes": ["rgb_array"]}
 
     def __init__(self):
-        self.observation_space = spaces.Box(0, 255, dtype=np.uint8)
-        self.viewer = None
-
+        #self.observation_space = spaces.Box(0, 255, dtype=np.uint8)
+        #self.viewer = None
+        pass
     def __del__(self):
         raise NotImplementedError()
 

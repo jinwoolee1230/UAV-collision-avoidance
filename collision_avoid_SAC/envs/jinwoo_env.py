@@ -138,10 +138,10 @@ class AirSimDroneEnv(AirSimEnv):
                 self.action[0] = 0
         
         if min(self.distance)<5:
-            reward_dyn= abs(np.sin(self.action[1]*10 * np.pi/180))*(1-(self.action[0]))
+            reward_dyn= abs(np.sin(self.action[1]*10 * np.pi/180))*(1-(self.action[0]/5))
 
         else:
-            reward_dyn = self.action[0]*np.cos(self.action[1]*10 * np.pi/180)/4
+            reward_dyn = self.action[0]*np.cos(self.action[1]*10 * np.pi/180)/5
         reward = reward_dyn
 
 
