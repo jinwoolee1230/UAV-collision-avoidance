@@ -10,7 +10,7 @@ from envs.jinwoo_env import AirSimDroneEnv
 
 def main():
 
-    env = AirSimDroneEnv('172.17.0.1') 
+    env = AirSimDroneEnv('127.0.0.1') 
     agent = SACagent(env)  # SAC 에이전트 객체
     
 
@@ -18,9 +18,9 @@ def main():
 
     # 행동 샘플링
     state = env.reset() 
-    action = agent.actor(state['depth'], state['dyn_state'])
+    action = agent.actor(state['depth'], state['dyn_state'], state["position"], state["global_pos"])
     print(action)
-    agent.load_weights('./collision_avoid_SAC/save_weights/')  # 신경망 파라미터 가져옴
+    agent.load_weights('/home/mw/collision-avoidance-study/collision_avoid_SAC/save_weights/')  # 신경망 파라미터 가져옴
     
     for _ in range(100000000):
         time = 0
@@ -28,7 +28,7 @@ def main():
         while True:
             env.render()
             # 행동 계산
-            action = agent.get_action(state['depth'], state['dyn_state'])
+            action = agent.get_action(state['depth'], state['dyn_state'], state["position"], state["global_pos"])
 
             state, reward, done, _ = env.step(action)
             time += 1

@@ -15,11 +15,11 @@ class AirSimDroneEnv(AirSimEnv):
     def __init__(self, ip_address):
         super().__init__()
 
-        self.prev_yaw = 0
         self.state = {
-            "depth": np.zeros([1,10,10,3]),
+            "depth": np.zeros([1,100,100]),
             "dyn_state": np.zeros(3),
             "position": np.zeros([1,2]),
+            "global_pos":np.zeros(3),
             "collision": False
         }
         self.drone = airsim.MultirotorClient(ip=ip_address)
@@ -28,130 +28,182 @@ class AirSimDroneEnv(AirSimEnv):
         #self._setup_flight()
 
     def _get_obs(self):
+
         
         self.drone_state = self.drone.getMultirotorState()
+
 
         vx = self.drone_state.kinematics_estimated.linear_velocity.x_val
         vy = self.drone_state.kinematics_estimated.linear_velocity.y_val
         yaw_rate = self.drone_state.kinematics_estimated.angular_velocity.z_val
 
+
         self.state['position'] = np.array([
-            self.drone_state.kinematics_estimated.position.x_val,
-            self.drone_state.kinematics_estimated.position.y_val
+            (self.target_pos[0]-self.drone_state.kinematics_estimated.position.x_val),
+            (self.target_pos[1]-self.drone_state.kinematics_estimated.position.y_val)
             ])
         self.state["dyn_state"] = self.make_batch(np.array([vx, vy, yaw_rate]))
         self.state['collision'] = self.drone.simGetCollisionInfo().has_collided
         self.state["depth"]= self.lidar_data()
+        self.state["global_pos"]= np.array([self.drone_state.kinematics_estimated.position.x_val,self.drone_state.kinematics_estimated.position.y_val])
         
         return self.state
     
     def lidar_data(self):
-        self.distance=[]
-        sorted_distance=[]
-        index=[]
-        splited1=[]
-        image_base=[]
-        image_base1=[]
-        image_base2=[]
-        self.image_base3=[]
-        self.lidarData=[]
-        while True:
-            if len(self.lidarData)<300:
-                self.lidarData = self.drone.getLidarData().point_cloud
-                if len(self.lidarData)>=300:
-                    break
-                else:
-                    continue
-        splited= np.array_split(self.lidarData, (len(self.lidarData)//3))
+        nowtime=time.time()
+        lidardata=[]
+        lidardata = self.drone.getLidarData().point_cloud
+        xy_data1=[]
 
-        for d in splited:
-            splited1.append(list(d))
-        for a in splited1:
-            self.distance.append(math.sqrt((a[0])**2+(a[1])**2+(a[2])**2))
-        sorted_distance= np.sort(self.distance)
-        sorted_distance= sorted_distance[0:100]
-        for b in sorted_distance:
-            index.append((np.where(self.distance==b))[0])
-        for c in index:
-            image_base.append((splited1[int(c[0])]))
-        for e in image_base:
-            for f in range(3):
-                image_base1.append((e[f]))
-        for g in image_base1:
-            if image_base1.index(g)%3==0:
-                image_base2.append(2.55*g)
-            elif image_base1.index(g)%3==1:
-                image_base2.append(g+30)
-            else:
-                image_base2.append(g+10)
-        for h in image_base2:
-            self.image_base3.append(int(h))
-        img_bytes= bytes(self.image_base3)
-        image = im.frombytes("RGB", (10, 10), img_bytes)
-        image_array= np.array(image)
-        image_array=image_array.astype("float32")
+
+        lidardata1=np.array(lidardata).reshape(len(lidardata)//3,3)
+        xy_data= np.delete(lidardata1,-1,axis=1)
+
+        for a in xy_data:
+            if 0<abs(a[0])<20 and 0<abs(a[1])<20:
+                xy_data1.append([int(a[0]*2.5)+50,int(a[1]*2.5)+50])
+        
+
+        xy_data1 = np.unique(xy_data1, axis=0)
+
+        self.distance= xy_data1
+
+        self.time+=1
+
+        blank_img= np.zeros((100,100))
+        
+        for a in xy_data1:
+            if 1<a[0]<99 and 1<a[1]<99:
+                blank_img[100-a[0],a[1]]=255
+                '''blank_img[100-a[0]-1,a[1]-1]=255
+                blank_img[100-a[0],a[1]-1]=255
+                blank_img[100-a[0]+1,a[1]-1]=255
+                blank_img[100-a[0]+1,a[1]]=255
+                blank_img[100-a[0]+1,a[1]+1]=255
+                blank_img[100-a[0],a[1]+1]=255
+                blank_img[100-a[0]-1,a[1]]=255
+                blank_img[100-a[0]-1,a[1]+1]=255'''
+
+        image_array= np.array(blank_img)
+        cv2.imshow("Visualization", image_array)
+        cv2.waitKey(1)
         return image_array
 
+    
+    def setter(self, list):
+        set_done=[]
+        for a in list:
+            if a not in set_done:
+                set_done.append(a)
+        return set_done
+    
     def make_batch(self, x):
         return np.expand_dims(x, axis=0)
 
-    def __del__(self):
-        self.drone.reset()
+    def __del__ (self):
+        self.drone.reset() 
 
     def _setup_flight(self):
         self.drone.reset()
         self.drone.enableApiControl(True)
         self.drone.armDisarm(True)
         x,y,z,w = airsim.utils.to_quaternion(0, 0, np.random.randint(0,360))
-        loc= [[30,40], [81,57], [-43,-56], [38,112], [-15, 43], [0,0]]
+        loc= [[30,40], [81,57], [38,112],[-83, -183], [-15, 43], [0,0]]
+
+        target_positions= [[[230,240],[-170,-160]],[[-119, -143],[-119,257]],[[-162,-88],[238,-88]],
+        [[117,17],[-283,17]],[[185,243],[-215,-157]],[[200,200],[-200,200]]]
+
         ranloc= random.choice(loc)
+
         x= ranloc[0]
         y= ranloc[1]
         z= -3
+
+        index= loc.index(ranloc)
+        self.target_pos= random.choice(target_positions[index])
+
         position = airsim.Vector3r(x, y, z)
         pose = airsim.Pose(position)
         self.drone.simSetVehiclePose(pose, ignore_collision= True)
+        self.time=0
         
         self.drone.moveToPositionAsync(x,y,-5,3).join()
 
     def move(self, action):
+
         self.action = action
-        if action[0]<0:
-            action[0]=0
-        vx, yaw_rate = action[0]*0.6, action[1]*10
+        vx, yaw_rate = action[0]*0.2, action[1]*9
         self.drone.moveByVelocityZBodyFrameAsync(
             vx = float(vx),
             vy = 0.0,
             z = -5.0,
-            duration = 20,
-            yaw_mode = airsim.YawMode(is_rate=True, yaw_or_rate=float(yaw_rate))
+            duration = 0.5,
+            yaw_mode = airsim.YawMode(is_rate=True, yaw_or_rate= float(yaw_rate))
         )     
 
     def get_reward(self):
-        reward_dyn=0
-        delta_depth=0
+        collision=0
+        
         if self.state['collision']==True:
             done = 1
+            collision=-100
+        elif (self.state["global_pos"])[0]>=300 or (self.state["global_pos"])[1]>=300:
+            done=1
+        elif abs(self.state['position'][0])<1 and abs(self.state['position'][1])<1:
+            done=1
+            collision=10
+            print ("GOAL REACHED")
         else:
             done = 0
-        if self.action[0] <= 0:
-                self.action[0] = 0
-        
-        if min(self.distance)<5:
-            reward_dyn= abs(np.sin(self.action[1]*10 * np.pi/180))*(1-(self.action[0]/5))
 
-        else:
-            reward_dyn = self.action[0]*np.cos(self.action[1]*10 * np.pi/180)/5
-        reward = reward_dyn
+        APF= -self.APE()- self.RPE()
+
+        #print (self.APE(), self.RPE())
+
+        if self.time<3:
+            self.prev_APF=APF        
+        reward= APF-self.prev_APF+collision
 
 
-        self.prev_depth= min(self.distance)
-        # print(reward_dyn, reward)       
+        self.prev_APF=APF
+     
         return reward, done
+    
+    def APE(self):
+        gain= 0.5
+        Euclidean_sq= (self.state['position'][0])**2+(self.state['position'][1])**2
+        APE= (1/2)*gain*Euclidean_sq
+        return APE
+    
+    def RPE(self):
+        gain= 0.5
+        repulse_sum=0
+        prev_Euclidean=25
+        for val in self.distance:
+            val[0]=(val[0]-50)/2.5
+            val[1]=(val[1]-50)/2.5
+            Euclidean= math.sqrt(val[0]**2+val[1]**2)
+            if Euclidean==0:
+                Euclidean=prev_Euclidean
+            if Euclidean<=5:
+                repulse= ((1/(Euclidean))-(1/5))**2
+            else:
+                repulse=0
+            repulse_sum+=repulse
+
+            prev_Euclidean=Euclidean
+
+        RPE= (1/2)*gain*repulse_sum       
+
+        return RPE
+
         
     def step(self, action):
+
         self.move(action)
+
         self.obs= self._get_obs()
+
         self.reward, self.done= self.get_reward()
         return self.obs, self.reward, self.done, self.state
 
